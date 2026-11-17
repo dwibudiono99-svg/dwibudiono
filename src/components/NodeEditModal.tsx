@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Camera, Trash2, Upload, X } from 'lucide-react';
 import {
   DivisionId,
   EducationLevel,
@@ -9,6 +9,7 @@ import {
   SchoolProfile,
 } from '../types/org';
 import { DIVISION_META } from '../data/defaultOrgData';
+import { PersonAvatar } from './PersonAvatar';
 
 interface NodeEditModalProps {
   isOpen: boolean;
@@ -42,6 +43,9 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   const [phone, setPhone] = useState('');
   const [tupoksiText, setTupoksiText] = useState('');
   const [unitHeadcount, setUnitHeadcount] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoError, setPhotoError] = useState('');
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -63,6 +67,8 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
       setUnitHeadcount(
         editingNode.unitHeadcount ? String(editingNode.unitHeadcount) : ''
       );
+      setPhotoUrl(editingNode.photoUrl ?? '');
+      setPhotoError('');
     } else {
       const parent = allNodes.find((n) => n.id === defaultParentId);
       setRoleTitle('');
@@ -80,10 +86,45 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
       setPhone('(031) 5341204');
       setTupoksiText('');
       setUnitHeadcount('');
+      setPhotoUrl('');
+      setPhotoError('');
     }
   }, [isOpen, editingNode, defaultParentId, allNodes]);
 
   if (!isOpen) return null;
+
+  const handleModalPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Pilih berkas gambar (JPG, PNG, atau WebP).');
+      return;
+    }
+    setPhotoError('');
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const size = 320;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const minSide = Math.min(img.width, img.height);
+        const sx = (img.width - minSide) / 2;
+        const sy = (img.height - minSide) / 2;
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+        setPhotoUrl(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => setPhotoError('Format gambar tidak didukung.');
+      img.src = String(reader.result);
+    };
+    reader.readAsDataURL(file);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +165,7 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
         !Number.isNaN(parsedHeadcount) && parsedHeadcount > 0
           ? parsedHeadcount
           : undefined,
+      photoUrl: photoUrl.trim() || undefined,
     };
 
     onSave(node, !editingNode);
@@ -159,6 +201,59 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Foto Pejabat / Bagian */}
+          <div className="bg-white border border-stone-200 rounded-xl p-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <PersonAvatar
+                name={personName || roleTitle || 'Unit'}
+                photoUrl={photoUrl || undefined}
+                meta={DIVISION_META[division]}
+                size="md"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                  <Camera className="w-3.5 h-3.5 text-stone-500" />
+                  <span>Foto Pejabat / Bagian</span>
+                </p>
+                <p className="text-[11px] text-stone-500 truncate">
+                  {photoUrl ? 'Foto terpasang pada bagian ini.' : 'Opsional · unggah pas foto bagian.'}
+                </p>
+                {photoError && (
+                  <p className="text-[11px] text-red-700 font-medium mt-0.5" role="alert">
+                    {photoError}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleModalPhotoChange}
+                className="hidden"
+                id="edit-modal-photo-input"
+              />
+              <label
+                htmlFor="edit-modal-photo-input"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{photoUrl ? 'Ganti Foto' : 'Tambah Foto'}</span>
+              </label>
+              {photoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoUrl('')}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus</span>
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-stone-700 mb-1.5">
@@ -243,6 +338,7 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
               >
                 <option value="PNS">PNS</option>
                 <option value="PPPK">PPPK</option>
+                <option value="P3K PW">P3K PW</option>
                 <option value="GTT">GTT</option>
                 <option value="PTT">PTT</option>
                 <option value="Mitra">Mitra / Komite</option>

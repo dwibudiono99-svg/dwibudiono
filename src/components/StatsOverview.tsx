@@ -21,6 +21,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
     const byStatus: Record<EmploymentStatus, number> = {
       PNS: 0,
       PPPK: 0,
+      'P3K PW': 0,
       GTT: 0,
       PTT: 0,
       Mitra: 0,
@@ -94,13 +95,14 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
         </div>
         <div className="p-6">
           <div className="text-xs font-medium text-stone-500">
-            Pejabat ASN (PNS & PPPK)
+            Pejabat ASN (PNS, PPPK &amp; P3K PW)
           </div>
           <div className="mt-2 font-display text-3xl font-semibold text-blue-900 tabular-nums">
-            {stats.byStatus.PNS + stats.byStatus.PPPK}
+            {stats.byStatus.PNS + stats.byStatus.PPPK + stats.byStatus['P3K PW']}
           </div>
           <div className="mt-1 text-xs text-stone-500 tabular-nums">
-            {stats.byStatus.PNS} PNS · {stats.byStatus.PPPK} PPPK
+            {stats.byStatus.PNS} PNS · {stats.byStatus.PPPK} PPPK ·{' '}
+            {stats.byStatus['P3K PW']} P3K PW
           </div>
         </div>
         <div className="p-6">
@@ -167,6 +169,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
                 [
                   { key: 'PNS', label: 'Pegawai Negeri Sipil (PNS)' },
                   { key: 'PPPK', label: 'Pegawai Pemerintah dengan Perjanjian Kerja (PPPK)' },
+                  { key: 'P3K PW', label: 'PPPK Paruh Waktu (P3K PW)' },
                   { key: 'GTT', label: 'Guru Tidak Tetap (GTT)' },
                   { key: 'PTT', label: 'Pegawai Tidak Tetap / Teknis (PTT)' },
                   { key: 'Mitra', label: 'Mitra Eksternal / Komite / OSIS' },

@@ -8,7 +8,13 @@ export type DivisionId =
   | 'humas'
   | 'akademik';
 
-export type EmploymentStatus = 'PNS' | 'PPPK' | 'GTT' | 'PTT' | 'Mitra';
+export type EmploymentStatus =
+  | 'PNS'
+  | 'PPPK'
+  | 'P3K PW'
+  | 'GTT'
+  | 'PTT'
+  | 'Mitra';
 
 export type EducationLevel = 'S3' | 'S2' | 'S1' | 'D3' | 'SMA';
 
@@ -34,6 +40,7 @@ export interface OrgNode {
   phone: string;
   tupoksi: string[];
   unitHeadcount?: number;
+  photoUrl?: string;
 }
 
 export interface SchoolProfile {

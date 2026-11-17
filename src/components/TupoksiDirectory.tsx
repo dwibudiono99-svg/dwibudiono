@@ -1,11 +1,13 @@
 import React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Camera } from 'lucide-react';
 import { DivisionId, OrgNode } from '../types/org';
 import { DIVISION_META } from '../data/defaultOrgData';
+import { PersonAvatar } from './PersonAvatar';
 
 interface TupoksiDirectoryProps {
   nodes: OrgNode[];
   onSelectNode: (nodeId: string) => void;
+  onEditPhoto: (node: OrgNode) => void;
 }
 
 const DIVISION_ORDER: DivisionId[] = [
@@ -22,6 +24,7 @@ const DIVISION_ORDER: DivisionId[] = [
 export const TupoksiDirectory: React.FC<TupoksiDirectoryProps> = ({
   nodes,
   onSelectNode,
+  onEditPhoto,
 }) => {
   return (
     <section aria-label="Tupoksi dan Tata Kelola Unit" className="space-y-8">
@@ -73,30 +76,59 @@ export const TupoksiDirectory: React.FC<TupoksiDirectoryProps> = ({
                 <div className="mt-5 divide-y divide-stone-100 border-t border-stone-100">
                   {divNodes.map((node) => (
                     <div key={node.id} className="py-3.5">
-                      <button
-                        type="button"
-                        onClick={() => onSelectNode(node.id)}
-                        className="w-full text-left group flex items-start justify-between gap-3 cursor-pointer"
-                      >
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-stone-900 group-hover:text-blue-900 transition-colors">
-                            {node.roleTitle}
+                      <div className="flex items-start justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => onSelectNode(node.id)}
+                          className="flex-1 min-w-0 text-left group flex items-start gap-3 cursor-pointer"
+                        >
+                          <PersonAvatar
+                            name={node.personName}
+                            photoUrl={node.photoUrl}
+                            meta={meta}
+                            size="sm"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold text-stone-900 group-hover:text-blue-900 transition-colors">
+                              {node.roleTitle}
+                            </div>
+                            <div className="text-xs text-stone-500 mt-0.5">
+                              <span>{node.personName}</span>
+                              {node.nip && node.nip !== '-' && (
+                                <>
+                                  <span className="mx-1.5" aria-hidden="true">·</span>
+                                  <span className="font-mono-num">{node.nip}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-xs text-stone-500 mt-0.5">
-                            <span>{node.personName}</span>
-                            {node.nip && node.nip !== '-' && (
-                              <>
-                                <span className="mx-1.5" aria-hidden="true">·</span>
-                                <span className="font-mono-num">{node.nip}</span>
-                              </>
-                            )}
-                          </div>
+                        </button>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditPhoto(node);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 hover:text-blue-900 rounded-md transition-colors whitespace-nowrap cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5 shrink-0" />
+                            <span>{node.photoUrl ? 'Ganti Foto' : 'Tambah Foto'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onSelectNode(node.id)}
+                            aria-label={`Lihat detail ${node.roleTitle}`}
+                            className="p-1.5 text-stone-400 hover:text-blue-900 rounded-md transition-colors cursor-pointer"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-stone-400 group-hover:text-blue-900 mt-0.5 shrink-0" />
-                      </button>
+                      </div>
 
                       {node.tupoksi.length > 0 && (
-                        <ul className="mt-2 space-y-1 text-xs text-stone-600 pl-4 list-disc marker:text-stone-300">
+                        <ul className="mt-2.5 space-y-1 text-xs text-stone-600 pl-16 list-disc marker:text-stone-300">
                           {node.tupoksi.slice(0, 2).map((t, idx) => (
                             <li key={idx} className="leading-relaxed">
                               {t}

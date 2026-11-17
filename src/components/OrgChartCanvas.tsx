@@ -7,15 +7,18 @@ import {
   ChevronUp,
   Layers,
   Plus,
+  Camera,
 } from 'lucide-react';
 import { DivisionId, OrgNode } from '../types/org';
 import { DIVISION_META } from '../data/defaultOrgData';
+import { PersonAvatar } from './PersonAvatar';
 
 interface OrgChartCanvasProps {
   nodes: OrgNode[];
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string) => void;
   onAddSubordinate: (parentId: string) => void;
+  onEditPhoto: (node: OrgNode) => void;
 }
 
 const FILTER_DIVISIONS: { id: DivisionId | 'all'; label: string }[] = [
@@ -28,17 +31,6 @@ const FILTER_DIVISIONS: { id: DivisionId | 'all'; label: string }[] = [
   { id: 'humas', label: 'Humas' },
 ];
 
-function getInitials(name: string): string {
-  const cleaned = name
-    .replace(/^(Dr\.|Drs\.|Dra\.|Ir\.|H\.|Hj\.)\s*/gi, '')
-    .split(',')[0]
-    .trim();
-  const parts = cleaned.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'SN';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
 interface NodeCardProps {
   node: OrgNode;
   isSelected: boolean;
@@ -49,6 +41,7 @@ interface NodeCardProps {
   onToggleCollapse?: () => void;
   onSelect: () => void;
   onAddChild: () => void;
+  onEditPhoto: () => void;
 }
 
 const NodeCard: React.FC<NodeCardProps> = ({
@@ -61,6 +54,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
   onToggleCollapse,
   onSelect,
   onAddChild,
+  onEditPhoto,
 }) => {
   const meta = DIVISION_META[node.division];
 
@@ -71,7 +65,7 @@ const NodeCard: React.FC<NodeCardProps> = ({
           ? 'border-blue-900 ring-2 ring-blue-900/15 shadow-sm'
           : 'border-stone-200 hover:border-stone-400 hover:shadow-sm'
       } ${isDimmed ? 'opacity-30' : 'opacity-100'} ${
-        compact ? 'w-[216px] p-3.5' : 'w-[244px] p-4'
+        compact ? 'w-[228px] p-3.5' : 'w-[252px] p-4'
       }`}
     >
       {/* Top Hairline Accent Bar (1.5px subtle, full-width top edge, no thick left bar) */}
@@ -97,11 +91,12 @@ const NodeCard: React.FC<NodeCardProps> = ({
               {node.roleTitle}
             </p>
           </div>
-          <div
-            className={`w-8 h-8 rounded-lg border ${meta.borderClass} ${meta.bgSubtleClass} ${meta.textClass} flex items-center justify-center text-[11px] font-display font-semibold shrink-0`}
-          >
-            {getInitials(node.personName)}
-          </div>
+          <PersonAvatar
+            name={node.personName}
+            photoUrl={node.photoUrl}
+            meta={meta}
+            size="xs"
+          />
         </div>
 
         <div className="mt-2.5 pt-2 border-t border-stone-100">
@@ -114,8 +109,8 @@ const NodeCard: React.FC<NodeCardProps> = ({
         </div>
       </button>
 
-      {/* Bottom Interactive Utility Row (only when childCount > 0 or hover add) */}
-      <div className="no-print mt-2 pt-1.5 border-t border-stone-100 flex items-center justify-between text-[11px]">
+      {/* Bottom Interactive Utility Row */}
+      <div className="no-print mt-2 pt-1.5 border-t border-stone-100 flex items-center justify-between gap-2 text-[11px]">
         {childCount > 0 && onToggleCollapse ? (
           <button
             type="button"
@@ -123,40 +118,59 @@ const NodeCard: React.FC<NodeCardProps> = ({
               e.stopPropagation();
               onToggleCollapse();
             }}
-            className="inline-flex items-center gap-1 text-stone-500 hover:text-stone-900 font-medium cursor-pointer"
+            className="inline-flex items-center gap-0.5 text-stone-500 hover:text-stone-900 font-medium whitespace-nowrap cursor-pointer"
           >
             {isCollapsed ? (
               <>
-                <ChevronDown className="w-3.5 h-3.5" />
-                <span className="tabular-nums">{childCount} Sub-Unit</span>
+                <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+                <span className="tabular-nums">{childCount} Sub</span>
               </>
             ) : (
               <>
-                <ChevronUp className="w-3.5 h-3.5" />
-                <span>Sembunyikan</span>
+                <ChevronUp className="w-3.5 h-3.5 shrink-0" />
+                <span>Tutup</span>
               </>
             )}
           </button>
         ) : (
-          <span className="text-stone-400 truncate max-w-[140px]">
+          <span className="text-stone-400 truncate max-w-[78px]">
             {node.unitHeadcount
-              ? `${node.unitHeadcount.toLocaleString('id-ID')} Anggota`
+              ? `${node.unitHeadcount.toLocaleString('id-ID')} Org`
               : node.room.split('·')[0].trim()}
           </span>
         )}
 
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddChild();
-          }}
-          title={`Tambah unit di bawah ${node.roleTitle}`}
-          className="opacity-0 group-hover:opacity-100 focus:opacity-100 inline-flex items-center gap-0.5 text-blue-900 hover:text-blue-950 font-medium transition-opacity cursor-pointer"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Unit</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditPhoto();
+            }}
+            title={
+              node.photoUrl
+                ? `Ganti foto ${node.roleTitle}`
+                : `Tambah foto ${node.roleTitle}`
+            }
+            className="inline-flex items-center gap-1 text-stone-600 hover:text-blue-900 font-medium transition-colors whitespace-nowrap cursor-pointer"
+          >
+            <Camera className="w-3 h-3 shrink-0" />
+            <span>{node.photoUrl ? 'Ganti Foto' : 'Tambah Foto'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddChild();
+            }}
+            title={`Tambah unit di bawah ${node.roleTitle}`}
+            className="opacity-75 group-hover:opacity-100 focus:opacity-100 inline-flex items-center gap-0.5 text-blue-900 hover:text-blue-950 font-medium transition-opacity whitespace-nowrap cursor-pointer"
+          >
+            <Plus className="w-3 h-3 shrink-0" />
+            <span>Unit</span>
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -171,6 +185,7 @@ interface SubTreeBranchProps {
   onToggleCollapse: (id: string) => void;
   onSelectNode: (id: string) => void;
   onAddSubordinate: (parentId: string) => void;
+  onEditPhoto: (node: OrgNode) => void;
   depth?: number;
 }
 
@@ -183,6 +198,7 @@ const SubTreeBranch: React.FC<SubTreeBranchProps> = ({
   onToggleCollapse,
   onSelectNode,
   onAddSubordinate,
+  onEditPhoto,
   depth = 0,
 }) => {
   const children = useMemo(
@@ -192,14 +208,21 @@ const SubTreeBranch: React.FC<SubTreeBranchProps> = ({
 
   if (children.length === 0 || collapsedIds[parentId]) return null;
 
+  const allKoordinasi = children.every((c) => c.relationType === 'koordinasi');
+
   return (
-    <div className="relative pl-5 mt-3 space-y-2.5">
-      {/* Vertical backbone connector */}
+    <div className="relative pl-5 pt-3">
+      {/* Top vertical bridge touching parent card bottom border down to first child */}
       <div
         aria-hidden="true"
-        className="absolute left-2.5 top-0 bottom-5 w-px bg-stone-300"
+        className={`absolute left-2.5 top-0 h-3 w-[1.5px] ${
+          allKoordinasi
+            ? 'border-l-[1.5px] border-dashed border-stone-500 bg-transparent'
+            : 'bg-stone-400'
+        }`}
       />
-      {children.map((child) => {
+      {children.map((child, idx) => {
+        const isLastChild = idx === children.length - 1;
         const grandchildren = allNodes.filter((n) => n.parentId === child.id);
         const isDimmed =
           activeDivision !== 'all' &&
@@ -208,14 +231,28 @@ const SubTreeBranch: React.FC<SubTreeBranchProps> = ({
           !(activeDivision === 'kurikulum' && child.id === 'dewan_guru');
 
         return (
-          <div key={child.id} className="relative">
-            {/* Horizontal branch connector */}
+          <div
+            key={child.id}
+            className={`relative ${!isLastChild ? 'pb-2.5' : ''}`}
+          >
+            {/* Vertical backbone segment: full height for intermediate items, stops cleanly at branch for last item */}
             <div
               aria-hidden="true"
-              className={`absolute -left-2.5 top-8 w-2.5 h-px ${
+              className={`absolute -left-2.5 top-0 w-[1.5px] ${
+                isLastChild ? 'h-8' : 'bottom-0'
+              } ${
+                allKoordinasi
+                  ? 'border-l-[1.5px] border-dashed border-stone-500 bg-transparent'
+                  : 'bg-stone-400'
+              }`}
+            />
+            {/* Horizontal branch connector joining backbone to card left border */}
+            <div
+              aria-hidden="true"
+              className={`absolute -left-2.5 top-8 w-2.5 ${
                 child.relationType === 'koordinasi'
-                  ? 'border-t border-dashed border-stone-400'
-                  : 'bg-stone-300'
+                  ? 'h-0 border-t-[1.5px] border-dashed border-stone-500'
+                  : 'h-[1.5px] bg-stone-400'
               }`}
             />
             <NodeCard
@@ -228,6 +265,7 @@ const SubTreeBranch: React.FC<SubTreeBranchProps> = ({
               onToggleCollapse={() => onToggleCollapse(child.id)}
               onSelect={() => onSelectNode(child.id)}
               onAddChild={() => onAddSubordinate(child.id)}
+              onEditPhoto={() => onEditPhoto(child)}
             />
             {depth < 3 && (
               <SubTreeBranch
@@ -239,6 +277,7 @@ const SubTreeBranch: React.FC<SubTreeBranchProps> = ({
                 onToggleCollapse={onToggleCollapse}
                 onSelectNode={onSelectNode}
                 onAddSubordinate={onAddSubordinate}
+                onEditPhoto={onEditPhoto}
                 depth={depth + 1}
               />
             )}
@@ -254,6 +293,7 @@ export const OrgChartCanvas: React.FC<OrgChartCanvasProps> = ({
   selectedNodeId,
   onSelectNode,
   onAddSubordinate,
+  onEditPhoto,
 }) => {
   const [zoom, setZoom] = useState<number>(0.92);
   const [activeDivision, setActiveDivision] = useState<DivisionId | 'all'>('all');
@@ -376,7 +416,7 @@ export const OrgChartCanvas: React.FC<OrgChartCanvasProps> = ({
       <div className="flex flex-wrap items-center justify-between gap-4 px-1 text-xs text-stone-500">
         <div className="flex flex-wrap items-center gap-5">
           <div className="flex items-center gap-2">
-            <span className="inline-block w-6 h-[1.5px] bg-stone-500" aria-hidden="true" />
+            <span className="inline-block w-6 h-[1.5px] bg-stone-400" aria-hidden="true" />
             <span>Garis Komando / Instruksi Langsung</span>
           </div>
           <div className="flex items-center gap-2">
@@ -403,41 +443,56 @@ export const OrgChartCanvas: React.FC<OrgChartCanvasProps> = ({
         >
           <div className="flex flex-col items-center min-w-[1160px] mx-auto">
             {/* TIER 1: Kepala Sekolah + Komite Sekolah (Garis Koordinasi) */}
-            <div className="relative flex items-center justify-center">
-              {/* Komite Sekolah positioned to the left of Kepala Sekolah on desktop */}
+            <div className="relative flex items-start justify-center">
+              {/* Komite Sekolah positioned to the left of Kepala Sekolah */}
               {komiteNodes.length > 0 && (
-                <div className="flex items-center mr-0">
+                <div className="flex items-start shrink-0">
                   <div className="flex flex-col gap-3">
                     {komiteNodes.map((komite) => (
-                      <NodeCard
-                        key={komite.id}
-                        node={komite}
-                        isSelected={selectedNodeId === komite.id}
-                        isDimmed={
-                          activeDivision !== 'all' &&
-                          activeDivision !== 'komite' &&
-                          activeDivision !== 'pimpinan'
-                        }
-                        onSelect={() => onSelectNode(komite.id)}
-                        onAddChild={() => onAddSubordinate(komite.id)}
-                      />
+                      <div key={komite.id}>
+                        <NodeCard
+                          node={komite}
+                          isSelected={selectedNodeId === komite.id}
+                          isDimmed={
+                            activeDivision !== 'all' &&
+                            activeDivision !== 'komite' &&
+                            activeDivision !== 'pimpinan'
+                          }
+                          onSelect={() => onSelectNode(komite.id)}
+                          onAddChild={() => onAddSubordinate(komite.id)}
+                          onEditPhoto={() => onEditPhoto(komite)}
+                        />
+                        <SubTreeBranch
+                          parentId={komite.id}
+                          allNodes={nodes}
+                          selectedNodeId={selectedNodeId}
+                          activeDivision={activeDivision}
+                          collapsedIds={collapsedIds}
+                          onToggleCollapse={handleToggleCollapse}
+                          onSelectNode={onSelectNode}
+                          onAddSubordinate={onAddSubordinate}
+                          onEditPhoto={onEditPhoto}
+                        />
+                      </div>
                     ))}
                   </div>
-                  {/* Dashed horizontal coordination connector */}
-                  <div className="flex flex-col items-center mx-1">
-                    <span className="text-[10px] font-medium uppercase tracking-wider text-stone-400 mb-1">
-                      Koordinasi
-                    </span>
-                    <div
-                      aria-hidden="true"
-                      className="w-12 border-t-2 border-dashed border-stone-400"
-                    />
+                  {/* Dashed horizontal coordination connector flush between both card borders */}
+                  <div className="h-[144px] flex items-center shrink-0">
+                    <div className="relative flex items-center w-14">
+                      <span className="absolute -top-4 inset-x-0 text-center text-[10px] font-medium uppercase tracking-wider text-stone-400">
+                        Koordinasi
+                      </span>
+                      <div
+                        aria-hidden="true"
+                        className="w-full h-0 border-t-[1.5px] border-dashed border-stone-500"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Kepala Sekolah Root Card */}
-              <div className="relative">
+              <div className="relative shrink-0">
                 <NodeCard
                   node={rootNode}
                   isSelected={selectedNodeId === rootNode.id}
@@ -446,23 +501,24 @@ export const OrgChartCanvas: React.FC<OrgChartCanvasProps> = ({
                   }
                   onSelect={() => onSelectNode(rootNode.id)}
                   onAddChild={() => onAddSubordinate(rootNode.id)}
+                  onEditPhoto={() => onEditPhoto(rootNode)}
                 />
               </div>
 
-              {/* Balance spacer on right so Kepala Sekolah stays visually centered when Komite is on left */}
+              {/* Balance spacer on right (252px card + 56px connector = 308px) so Kepala Sekolah aligns exactly over Tier 2 spine */}
               {komiteNodes.length > 0 && (
-                <div className="w-[292px] hidden xl:block" aria-hidden="true" />
+                <div className="w-[308px] shrink-0" aria-hidden="true" />
               )}
             </div>
 
             {/* Vertical Main Spine from Kepala Sekolah down to Tier 2 Bus */}
             {tier2Nodes.length > 0 && (
-              <div className="w-px h-10 bg-stone-300" aria-hidden="true" />
+              <div className="w-[1.5px] h-10 bg-stone-400" aria-hidden="true" />
             )}
 
             {/* TIER 2 BUS + COLUMNS */}
             {tier2Nodes.length > 0 && (
-              <div className="flex items-start justify-center gap-5 relative">
+              <div className="flex items-start justify-center relative">
                 {tier2Nodes.map((pillar, index) => {
                   const isFirst = index === 0;
                   const isLast = index === tier2Nodes.length - 1;
@@ -476,24 +532,24 @@ export const OrgChartCanvas: React.FC<OrgChartCanvasProps> = ({
                   return (
                     <div
                       key={pillar.id}
-                      className="relative flex flex-col items-center"
+                      className="relative flex flex-col items-center px-2.5"
                     >
-                      {/* Horizontal Distribution Bus Segments */}
+                      {/* Horizontal Distribution Bus Segments (px-2.5 ensures zero gap between columns) */}
                       <div className="w-full h-6 relative" aria-hidden="true">
                         {/* Left half of bus bar */}
                         {!isFirst && (
-                          <div className="absolute top-0 left-0 right-1/2 h-px bg-stone-300" />
+                          <div className="absolute top-0 left-0 right-1/2 h-[1.5px] bg-stone-400" />
                         )}
                         {/* Right half of bus bar */}
                         {!isLast && (
-                          <div className="absolute top-0 left-1/2 right-0 h-px bg-stone-300" />
+                          <div className="absolute top-0 left-1/2 right-0 h-[1.5px] bg-stone-400" />
                         )}
-                        {/* Vertical drop line into Tier 2 card */}
+                        {/* Vertical drop line connecting bus directly into top border of Tier 2 card */}
                         <div
-                          className={`absolute top-0 left-1/2 -translate-x-1/2 h-6 w-px ${
+                          className={`absolute top-0 left-1/2 -translate-x-1/2 h-6 ${
                             pillar.relationType === 'koordinasi'
-                              ? 'border-l border-dashed border-stone-400 bg-transparent'
-                              : 'bg-stone-300'
+                              ? 'w-0 border-l-[1.5px] border-dashed border-stone-500'
+                              : 'w-[1.5px] bg-stone-400'
                           }`}
                         />
                       </div>
@@ -509,6 +565,7 @@ export const OrgChartCanvas: React.FC<OrgChartCanvasProps> = ({
                         onToggleCollapse={() => handleToggleCollapse(pillar.id)}
                         onSelect={() => onSelectNode(pillar.id)}
                         onAddChild={() => onAddSubordinate(pillar.id)}
+                        onEditPhoto={() => onEditPhoto(pillar)}
                       />
 
                       {/* Tier 3 & 4 Sub-Units Cascade */}
@@ -522,6 +579,7 @@ export const OrgChartCanvas: React.FC<OrgChartCanvasProps> = ({
                           onToggleCollapse={handleToggleCollapse}
                           onSelectNode={onSelectNode}
                           onAddSubordinate={onAddSubordinate}
+                          onEditPhoto={onEditPhoto}
                         />
                       </div>
                     </div>

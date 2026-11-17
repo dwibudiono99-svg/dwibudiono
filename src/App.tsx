@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Download, RotateCcw, Settings2, Plus } from 'lucide-react';
+import { Download, FileDown, RotateCcw, Settings2, Plus } from 'lucide-react';
 import { OrgNode, SchoolProfile, ViewTab } from './types/org';
 import {
   DEFAULT_ORG_NODES,
@@ -12,6 +12,8 @@ import { TupoksiDirectory } from './components/TupoksiDirectory';
 import { StatsOverview } from './components/StatsOverview';
 import { NodeDetailDrawer } from './components/NodeDetailDrawer';
 import { NodeEditModal, SchoolProfileModal } from './components/NodeEditModal';
+import { PhotoUploadModal } from './components/PhotoUploadModal';
+import { exportOrgChartToPdf } from './utils/exportOrgChartPdf';
 
 const STORAGE_NODES_KEY = 'sman9_org_nodes_v1';
 const STORAGE_PROFILE_KEY = 'sman9_school_profile_v1';
@@ -66,7 +68,10 @@ export function App() {
   const [editingNode, setEditingNode] = useState<OrgNode | null>(null);
   const [defaultParentId, setDefaultParentId] = useState<string | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [photoModalNode, setPhotoModalNode] = useState<OrgNode | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -124,6 +129,12 @@ export function App() {
     setSelectedNodeId(null);
   };
 
+  const handleSavePhoto = (nodeId: string, photoUrl: string | undefined) => {
+    setNodes((prev) =>
+      prev.map((n) => (n.id === nodeId ? { ...n, photoUrl } : n))
+    );
+  };
+
   const handleExportJson = () => {
     const payload = {
       exportedAt: new Date().toISOString(),
@@ -139,6 +150,19 @@ export function App() {
     link.download = `struktur-organisasi-${schoolProfile.npsn || 'sekolah'}.json`;
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleExportPdf = async () => {
+    if (isExportingPdf) return;
+    setPdfError(null);
+    setIsExportingPdf(true);
+    try {
+      await exportOrgChartToPdf(nodes, schoolProfile);
+    } catch {
+      setPdfError('Gagal membuat dokumen PDF. Silakan coba kembali.');
+    } finally {
+      setIsExportingPdf(false);
+    }
   };
 
   const handleResetDefault = () => {
@@ -209,6 +233,16 @@ export function App() {
 
             <button
               type="button"
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-white border border-stone-200 hover:border-blue-900/40 hover:bg-stone-50 text-blue-900 rounded-lg transition-colors whitespace-nowrap disabled:opacity-60 cursor-pointer"
+            >
+              <FileDown className="w-3.5 h-3.5" />
+              <span>{isExportingPdf ? 'Menyiapkan PDF...' : 'Ekspor PDF'}</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleExportJson}
               className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-white border border-stone-200 hover:border-stone-300 hover:bg-stone-50 text-stone-700 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
             >
@@ -246,6 +280,22 @@ export function App() {
           </div>
         </section>
 
+        {pdfError && (
+          <div
+            role="alert"
+            className="no-print bg-red-50 border border-red-200 text-red-800 text-xs font-medium px-4 py-2.5 rounded-lg flex items-center justify-between"
+          >
+            <span>{pdfError}</span>
+            <button
+              type="button"
+              onClick={() => setPdfError(null)}
+              className="text-red-700 hover:underline cursor-pointer"
+            >
+              Tutup
+            </button>
+          </div>
+        )}
+
         {/* Active View Content */}
         {activeTab === 'bagan' && (
           <OrgChartCanvas
@@ -253,6 +303,7 @@ export function App() {
             selectedNodeId={selectedNodeId}
             onSelectNode={setSelectedNodeId}
             onAddSubordinate={handleOpenAddSubordinate}
+            onEditPhoto={setPhotoModalNode}
           />
         )}
 
@@ -263,6 +314,7 @@ export function App() {
             onAddNew={() =>
               handleOpenAddSubordinate(rootLeader?.id ?? 'kepsek')
             }
+            onEditPhoto={setPhotoModalNode}
           />
         )}
 
@@ -270,6 +322,7 @@ export function App() {
           <TupoksiDirectory
             nodes={nodes}
             onSelectNode={setSelectedNodeId}
+            onEditPhoto={setPhotoModalNode}
           />
         )}
 
@@ -313,6 +366,7 @@ export function App() {
         onClose={() => setSelectedNodeId(null)}
         onSelectNode={setSelectedNodeId}
         onEditNode={handleOpenEditNode}
+        onEditPhoto={setPhotoModalNode}
         onAddSubordinate={handleOpenAddSubordinate}
         onDeleteNode={handleDeleteNode}
       />
@@ -325,6 +379,13 @@ export function App() {
         allNodes={nodes}
         onClose={() => setNodeModalOpen(false)}
         onSave={handleSaveNode}
+      />
+
+      {/* Add / Edit Unit Photo Modal */}
+      <PhotoUploadModal
+        node={photoModalNode}
+        onClose={() => setPhotoModalNode(null)}
+        onSavePhoto={handleSavePhoto}
       />
 
       {/* Edit School Profile Modal */}

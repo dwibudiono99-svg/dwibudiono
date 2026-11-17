@@ -9,9 +9,11 @@ import {
   MapPin,
   ArrowUpRight,
   ChevronRight,
+  Camera,
 } from 'lucide-react';
 import { OrgNode } from '../types/org';
 import { DIVISION_META } from '../data/defaultOrgData';
+import { PersonAvatar } from './PersonAvatar';
 
 interface NodeDetailDrawerProps {
   node: OrgNode | null;
@@ -19,19 +21,9 @@ interface NodeDetailDrawerProps {
   onClose: () => void;
   onSelectNode: (nodeId: string) => void;
   onEditNode: (node: OrgNode) => void;
+  onEditPhoto: (node: OrgNode) => void;
   onAddSubordinate: (parentId: string) => void;
   onDeleteNode: (nodeId: string) => void;
-}
-
-function getInitials(name: string): string {
-  const cleaned = name
-    .replace(/^(Dr\.|Drs\.|Dra\.|Ir\.|H\.|Hj\.)\s*/gi, '')
-    .split(',')[0]
-    .trim();
-  const parts = cleaned.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return 'SN';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
@@ -40,6 +32,7 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
   onClose,
   onSelectNode,
   onEditNode,
+  onEditPhoto,
   onAddSubordinate,
   onDeleteNode,
 }) => {
@@ -89,11 +82,25 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
         <div className="p-6 space-y-8 flex-1">
           {/* Identity Block */}
           <div className="flex items-start gap-4">
-            <div
-              className={`w-14 h-14 rounded-xl border ${meta.borderClass} ${meta.bgSubtleClass} flex items-center justify-center shrink-0 font-display text-lg font-semibold ${meta.textClass}`}
+            <button
+              type="button"
+              onClick={() => onEditPhoto(node)}
+              title={node.photoUrl ? 'Ganti foto profil' : 'Tambah foto profil'}
+              className="relative group shrink-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-900 cursor-pointer"
             >
-              {getInitials(node.personName)}
-            </div>
+              <PersonAvatar
+                name={node.personName}
+                photoUrl={node.photoUrl}
+                meta={meta}
+                size="lg"
+              />
+              <span
+                aria-hidden="true"
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-stone-300 shadow-sm flex items-center justify-center text-stone-700 group-hover:text-blue-900 group-hover:border-blue-900 transition-colors"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </span>
+            </button>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">
                 {node.roleTitle}
@@ -126,6 +133,14 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
 
           {/* Action Strip */}
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-stone-200">
+            <button
+              type="button"
+              onClick={() => onEditPhoto(node)}
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium bg-white border border-stone-300 text-stone-800 hover:bg-stone-100 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>{node.photoUrl ? 'Ganti Foto' : 'Tambah Foto'}</span>
+            </button>
             <button
               type="button"
               onClick={() => onEditNode(node)}

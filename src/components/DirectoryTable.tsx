@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Search, Plus, ArrowUpDown, ChevronRight } from 'lucide-react';
+import { Search, Plus, ArrowUpDown, ChevronRight, Camera } from 'lucide-react';
 import { DivisionId, EmploymentStatus, OrgNode } from '../types/org';
 import { DIVISION_META } from '../data/defaultOrgData';
+import { PersonAvatar } from './PersonAvatar';
 
 interface DirectoryTableProps {
   nodes: OrgNode[];
   onSelectNode: (nodeId: string) => void;
   onAddNew: () => void;
+  onEditPhoto: (node: OrgNode) => void;
 }
 
 type SortKey = 'tier' | 'personName' | 'roleTitle' | 'division';
@@ -15,6 +17,7 @@ export const DirectoryTable: React.FC<DirectoryTableProps> = ({
   nodes,
   onSelectNode,
   onAddNew,
+  onEditPhoto,
 }) => {
   const [query, setQuery] = useState('');
   const [divisionFilter, setDivisionFilter] = useState<DivisionId | 'all'>('all');
@@ -101,6 +104,7 @@ export const DirectoryTable: React.FC<DirectoryTableProps> = ({
             <option value="all">Semua Status</option>
             <option value="PNS">PNS</option>
             <option value="PPPK">PPPK</option>
+            <option value="P3K PW">P3K PW</option>
             <option value="GTT">GTT</option>
             <option value="PTT">PTT</option>
             <option value="Mitra">Mitra / Komite</option>
@@ -187,7 +191,7 @@ export const DirectoryTable: React.FC<DirectoryTableProps> = ({
                     </button>
                   </th>
                   <th className="py-3 px-4">Lokasi Ruang</th>
-                  <th className="py-3 px-4 text-right">Rincian</th>
+                  <th className="py-3 px-4 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 text-sm">
@@ -217,11 +221,21 @@ export const DirectoryTable: React.FC<DirectoryTableProps> = ({
                         </div>
                       </td>
                       <td className="py-3 px-4">
-                        <div className="font-medium text-stone-900">
-                          {node.personName}
-                        </div>
-                        <div className="text-xs text-stone-500 mt-0.5">
-                          {node.rank}
+                        <div className="flex items-center gap-3">
+                          <PersonAvatar
+                            name={node.personName}
+                            photoUrl={node.photoUrl}
+                            meta={meta}
+                            size="sm"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-medium text-stone-900">
+                              {node.personName}
+                            </div>
+                            <div className="text-xs text-stone-500 mt-0.5">
+                              {node.rank}
+                            </div>
+                          </div>
                         </div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
@@ -240,11 +254,24 @@ export const DirectoryTable: React.FC<DirectoryTableProps> = ({
                       <td className="py-3 px-4 text-xs text-stone-600 max-w-[200px] truncate">
                         {node.room}
                       </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-900">
-                          <span>Detail</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </span>
+                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-3">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onEditPhoto(node);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-stone-100 hover:bg-stone-200 text-stone-700 hover:text-blue-900 rounded-md transition-colors whitespace-nowrap cursor-pointer"
+                          >
+                            <Camera className="w-3.5 h-3.5 shrink-0" />
+                            <span>{node.photoUrl ? 'Ganti Foto' : 'Tambah Foto'}</span>
+                          </button>
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-900">
+                            <span>Detail</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   );
