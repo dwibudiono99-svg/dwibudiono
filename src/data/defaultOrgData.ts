@@ -14,6 +14,8 @@ export const DEFAULT_SCHOOL_PROFILE: SchoolProfile = {
   recipientTitle:
     'Kepala Dinas Pendidikan Provinsi Jawa Timur\nc.q. Kepala Cabang Dinas Pendidikan Wilayah Surabaya',
   committeeChairName: 'Ir. H. Bambang Sudjatmiko, M.M.',
+  appWebUrl:
+    'https://ais-pre-kcxun5xqxzgbw5ptyepfru-302703941788.asia-southeast1.run.app',
 };
 
 export const DIVISION_META: Record<DivisionId, DivisionMeta> = {

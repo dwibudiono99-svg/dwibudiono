@@ -695,23 +695,33 @@ export async function exportOfficialReportToPdf(
   doc.text(`NIP ${headmasterNip}`, attSigX, curY + 32);
 
   // Penomoran halaman resmi pada semua halaman
+  const resolvedAppUrl =
+    (
+      schoolProfile.appWebUrl ||
+      'https://ais-pre-kcxun5xqxzgbw5ptyepfru-302703941788.asia-southeast1.run.app'
+    ).replace(/\/+$/, '') + '/';
   const totalPages = doc.getNumberOfPages();
   for (let p = 1; p <= totalPages; p++) {
     doc.setPage(p);
     doc.setDrawColor(214, 211, 209);
     doc.setLineWidth(0.2);
-    doc.line(marginX, pageH - 13, pageW - marginX, pageH - 13);
+    doc.line(marginX, pageH - 14, pageW - marginX, pageH - 14);
     doc.setFont('times', 'italic');
     doc.setFontSize(8);
     doc.setTextColor(120, 113, 108);
     doc.text(
       `Laporan Kedinasan · ${schoolProfile.schoolName} (NPSN ${schoolProfile.npsn}) · ${schoolProfile.decreeNumber}`,
       marginX,
-      pageH - 9
+      pageH - 10
     );
     doc.setFont('times', 'normal');
-    doc.text(`Hal. ${p} dari ${totalPages}`, pageW - marginX, pageH - 9, {
+    doc.text(`Hal. ${p} dari ${totalPages}`, pageW - marginX, pageH - 10, {
       align: 'right',
+    });
+    doc.setFontSize(7.2);
+    doc.setTextColor(30, 58, 138);
+    doc.textWithLink(`Tautan Aplikasi: ${resolvedAppUrl}`, marginX, pageH - 5.8, {
+      url: resolvedAppUrl,
     });
   }
 

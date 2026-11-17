@@ -921,13 +921,23 @@ export async function exportOrgChartToPdf(
     month: 'long',
     year: 'numeric',
   });
+  const resolvedAppUrl =
+    (
+      schoolProfile.appWebUrl ||
+      'https://ais-pre-kcxun5xqxzgbw5ptyepfru-302703941788.asia-southeast1.run.app'
+    ).replace(/\/+$/, '') + '/';
+
   doc.setFontSize(7.5);
   doc.setTextColor(120, 113, 108);
   doc.text(
     `Dokumen diekspor pada ${formattedDate} · ${schoolProfile.schoolName}`,
     marginX,
-    footerTopY + 21
+    footerTopY + 19.5
   );
+  doc.setTextColor(30, 58, 138);
+  doc.textWithLink(`Tautan Web: ${resolvedAppUrl}`, marginX, footerTopY + 24.5, {
+    url: resolvedAppUrl,
+  });
 
   // Headmaster Ratification Signature (right)
   const sigX = pageW - marginX - 75;

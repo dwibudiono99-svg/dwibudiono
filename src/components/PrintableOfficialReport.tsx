@@ -344,6 +344,16 @@ export const PrintableOfficialReport: React.FC<PrintableOfficialReportProps> = (
             <p className="text-[9.5pt]">NIP {headmasterNip}</p>
           </div>
         </div>
+
+        <p className="mt-5 pt-2 border-t border-stone-300 text-[8.5pt] text-stone-700">
+          Tautan Aplikasi Web:{' '}
+          <span className="font-mono-num">
+            {`${(
+              schoolProfile.appWebUrl ||
+              'https://ais-pre-kcxun5xqxzgbw5ptyepfru-302703941788.asia-southeast1.run.app'
+            ).replace(/\/+$/, '')}/`}
+          </span>
+        </p>
       </div>
 
       {/* HALAMAN 2+: LAMPIRAN I DAFTAR PEJABAT & TUPOKSI */}

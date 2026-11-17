@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   DatabaseBackup,
+  ExternalLink,
   FileCheck2,
   FileDown,
+  Globe,
   Plus,
   RotateCcw,
   Settings2,
@@ -27,6 +29,10 @@ import {
   LocalBackupSnapshot,
 } from './components/BackupDataModal';
 import { PrintableOfficialReport } from './components/PrintableOfficialReport';
+import {
+  DEFAULT_APP_WEB_URL,
+  WebLinkShareModal,
+} from './components/WebLinkShareModal';
 import { exportOrgChartToPdf } from './utils/exportOrgChartPdf';
 import { OfficialReportOptions } from './utils/exportOfficialReportPdf';
 
@@ -39,6 +45,7 @@ const LEGACY_NODES_KEYS = [
 ];
 const STORAGE_PROFILE_KEY = 'sman9_school_profile_v1';
 const STORAGE_BACKUPS_KEY = 'sman9_org_backups_v1';
+const VALID_TABS: ViewTab[] = ['bagan', 'direktori', 'tupoksi', 'statistik'];
 
 function collectDescendantIds(rootId: string, nodes: OrgNode[]): Set<string> {
   const toDelete = new Set<string>([rootId]);
@@ -106,8 +113,25 @@ export function App() {
     return DEFAULT_SCHOOL_PROFILE;
   });
 
-  const [activeTab, setActiveTab] = useState<ViewTab>('bagan');
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ViewTab>(() => {
+    try {
+      const tabParam = new URLSearchParams(window.location.search).get('tab');
+      if (tabParam && VALID_TABS.includes(tabParam as ViewTab)) {
+        return tabParam as ViewTab;
+      }
+    } catch {
+      // Ignore malformed query string
+    }
+    return 'bagan';
+  });
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => {
+    try {
+      const unitParam = new URLSearchParams(window.location.search).get('unit');
+      return unitParam || null;
+    } catch {
+      return null;
+    }
+  });
 
   // Modals
   const [nodeModalOpen, setNodeModalOpen] = useState(false);
@@ -117,6 +141,7 @@ export function App() {
   const [photoModalNode, setPhotoModalNode] = useState<OrgNode | null>(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [backupModalOpen, setBackupModalOpen] = useState(false);
+  const [webLinkModalOpen, setWebLinkModalOpen] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -162,7 +187,37 @@ export function App() {
       // Ignore storage quota errors
     }
     document.title = `Struktur Organisasi Sekolah — ${schoolProfile.schoolName}`;
+    const resolvedUrl = `${(schoolProfile.appWebUrl || DEFAULT_APP_WEB_URL).replace(/\/+$/, '')}/`;
+    const canonicalEl = document.querySelector('link[rel="canonical"]');
+    if (canonicalEl) canonicalEl.setAttribute('href', resolvedUrl);
+    const ogUrlEl = document.querySelector('meta[property="og:url"]');
+    if (ogUrlEl) ogUrlEl.setAttribute('content', resolvedUrl);
   }, [schoolProfile]);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (activeTab === 'bagan') {
+        params.delete('tab');
+      } else {
+        params.set('tab', activeTab);
+      }
+      if (selectedNodeId) {
+        params.set('unit', selectedNodeId);
+      } else {
+        params.delete('unit');
+      }
+      const qs = params.toString();
+      const nextUrl = qs
+        ? `${window.location.pathname}?${qs}`
+        : window.location.pathname;
+      window.history.replaceState(null, '', nextUrl);
+    } catch {
+      // Ignore history API restrictions
+    }
+  }, [activeTab, selectedNodeId]);
+
+  const appWebUrl = `${(schoolProfile.appWebUrl || DEFAULT_APP_WEB_URL).replace(/\/+$/, '')}/`;
 
   const selectedNode = useMemo(
     () => nodes.find((n) => n.id === selectedNodeId) ?? null,
@@ -362,6 +417,19 @@ export function App() {
                   <span className="text-stone-300" aria-hidden="true">·</span>
                   <span>{schoolProfile.address}, {schoolProfile.city}</span>
                 </div>
+
+                <div className="pt-0.5 flex items-center justify-center">
+                  <a
+                    href={appWebUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-medium text-blue-900 hover:underline break-all"
+                  >
+                    <Globe className="w-3.5 h-3.5 shrink-0" />
+                    <span className="font-mono-num">{appWebUrl}</span>
+                    <ExternalLink className="no-print w-3 h-3 shrink-0 opacity-75" />
+                  </a>
+                </div>
               </div>
 
               {/* Logo Sekolah (Kanan) */}
@@ -438,6 +506,15 @@ export function App() {
               >
                 <DatabaseBackup className="w-4 h-4" />
                 <span>Backup &amp; Impor Data</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setWebLinkModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[13px] font-medium bg-white border border-stone-200 hover:border-blue-900/40 hover:bg-stone-50 text-blue-900 rounded-lg transition-colors whitespace-nowrap cursor-pointer"
+              >
+                <Globe className="w-4 h-4" />
+                <span>Tautan Web &amp; Semat</span>
               </button>
 
               {!confirmReset ? (
@@ -540,10 +617,19 @@ export function App() {
       </main>
 
       <footer className="no-print border-t border-stone-200 bg-white mt-auto">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-stone-500">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-2 text-xs text-stone-500">
           <span>
             {schoolProfile.schoolName} · {schoolProfile.address}, {schoolProfile.city}
           </span>
+          <a
+            href={appWebUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 font-mono-num text-blue-900 hover:underline break-all"
+          >
+            <Globe className="w-3.5 h-3.5 shrink-0" />
+            <span>{appWebUrl}</span>
+          </a>
           <span className="font-mono-num">
             {schoolProfile.decreeNumber} · {nodes.length} Unit Terdaftar
           </span>
@@ -612,6 +698,16 @@ export function App() {
         onCreateSnapshot={handleCreateSnapshot}
         onRestoreSnapshot={handleRestoreSnapshot}
         onDeleteSnapshot={handleDeleteSnapshot}
+      />
+
+      {/* Web Link & Embed Share Modal */}
+      <WebLinkShareModal
+        isOpen={webLinkModalOpen}
+        schoolProfile={schoolProfile}
+        activeTab={activeTab}
+        selectedNode={selectedNode}
+        onClose={() => setWebLinkModalOpen(false)}
+        onUpdateProfile={setSchoolProfile}
       />
 
       {/* Formal A4 Portrait Official Report View (Print Only) */}

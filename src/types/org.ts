@@ -58,6 +58,7 @@ export interface SchoolProfile {
   reportLetterNumber?: string;
   recipientTitle?: string;
   committeeChairName?: string;
+  appWebUrl?: string;
 }
 
 export interface DivisionMeta {
