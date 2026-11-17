@@ -63,7 +63,7 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
       <aside className="relative z-10 w-full max-w-lg bg-[#FAF9F6] border-l border-stone-200 h-full overflow-y-auto shadow-xl flex flex-col">
         {/* Top Header */}
         <div className="sticky top-0 z-10 bg-[#FAF9F6]/95 backdrop-blur-sm border-b border-stone-200 px-6 py-4 flex items-center justify-between gap-4">
-          <div className="text-xs font-medium tracking-wider uppercase text-stone-500">
+          <div className="text-[13px] font-semibold tracking-wider uppercase text-stone-600">
             <span>{node.shortCode}</span>
             <span className="mx-2" aria-hidden="true">·</span>
             <span className={meta.textClass}>{meta.label}</span>
@@ -102,16 +102,16 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
               </span>
             </button>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-stone-500 uppercase tracking-wider">
+              <p className="text-[13px] font-semibold text-stone-600 uppercase tracking-wider">
                 {node.roleTitle}
               </p>
               <h2
                 id="drawer-title"
-                className="font-display text-2xl font-semibold text-stone-900 mt-1 leading-snug"
+                className="font-display text-2xl sm:text-[26px] font-semibold text-stone-900 mt-1 leading-snug"
               >
                 {node.personName}
               </h2>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-stone-600">
+              <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-stone-600">
                 <span className="font-mono-num">
                   {node.nip && node.nip !== '-' ? `NIP ${node.nip}` : 'Non-NIP'}
                 </span>
@@ -238,7 +238,7 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
 
           {/* Tupoksi Section */}
           <div>
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-500 mb-3">
+            <h3 className="text-[13px] font-semibold uppercase tracking-wider text-stone-600 mb-3">
               Tugas Pokok & Fungsi (Tupoksi)
             </h3>
             {node.tupoksi.length > 0 ? (
@@ -246,9 +246,9 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
                 {node.tupoksi.map((item, idx) => (
                   <li
                     key={idx}
-                    className="flex items-start gap-3 text-sm text-stone-700 leading-relaxed"
+                    className="flex items-start gap-3 text-[15px] text-stone-700 leading-relaxed"
                   >
-                    <span className="font-mono-num text-xs font-medium text-stone-400 mt-1 shrink-0">
+                    <span className="font-mono-num text-[13px] font-medium text-stone-500 mt-1 shrink-0">
                       {String(idx + 1).padStart(2, '0')}.
                     </span>
                     <span>{item}</span>
@@ -256,7 +256,7 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
                 ))}
               </ol>
             ) : (
-              <p className="text-sm text-stone-500 italic">
+              <p className="text-[15px] text-stone-500 italic">
                 Belum ada rincian tupoksi yang dicatat.
               </p>
             )}

@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import { OrgNode, SchoolProfile } from '../types/org';
 import { DIVISION_META } from '../data/defaultOrgData';
 import { getPersonInitials } from '../components/PersonAvatar';
+import { getDefaultLogoDataUri } from '../components/KopLogos';
 
 interface PlacedCard {
   node: OrgNode;
@@ -126,13 +127,105 @@ async function preloadNodePhotos(
   return map;
 }
 
+interface LoadedLogo {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
+async function loadLogoPngDataUrl(src: string): Promise<LoadedLogo | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        resolve(null);
+      }
+    }, 3000);
+
+    if (!src.startsWith('data:')) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    img.onload = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      try {
+        const natW = img.naturalWidth || img.width || 120;
+        const natH = img.naturalHeight || img.height || 136;
+        const maxSide = 240;
+        const ratio = Math.min(2, maxSide / Math.max(natW, natH));
+        const cw = Math.max(1, Math.round(natW * ratio));
+        const ch = Math.max(1, Math.round(natH * ratio));
+        const canvas = document.createElement('canvas');
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.clearRect(0, 0, cw, ch);
+        ctx.drawImage(img, 0, 0, cw, ch);
+        resolve({
+          dataUrl: canvas.toDataURL('image/png'),
+          width: cw,
+          height: ch,
+        });
+      } catch {
+        resolve(null);
+      }
+    };
+
+    img.onerror = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      resolve(null);
+    };
+
+    img.src = src;
+  });
+}
+
+function drawFittedLogo(
+  doc: jsPDF,
+  logo: LoadedLogo | null,
+  boxX: number,
+  boxY: number,
+  maxW: number,
+  maxH: number
+) {
+  if (!logo) return;
+  const scale = Math.min(maxW / logo.width, maxH / logo.height);
+  const drawW = logo.width * scale;
+  const drawH = logo.height * scale;
+  const drawX = boxX + (maxW - drawW) / 2;
+  const drawY = boxY + (maxH - drawH) / 2;
+  try {
+    doc.addImage(logo.dataUrl, 'PNG', drawX, drawY, drawW, drawH);
+  } catch {
+    // Ignore unsupported image payload
+  }
+}
+
 export async function exportOrgChartToPdf(
   nodes: OrgNode[],
   schoolProfile: SchoolProfile
 ): Promise<void> {
   if (nodes.length === 0) return;
 
-  const photoMap = await preloadNodePhotos(nodes);
+  const [photoMap, provinceLogo, schoolLogo] = await Promise.all([
+    preloadNodePhotos(nodes),
+    loadLogoPngDataUrl(
+      schoolProfile.provinceLogoUrl || getDefaultLogoDataUri('province')
+    ),
+    loadLogoPngDataUrl(
+      schoolProfile.schoolLogoUrl || getDefaultLogoDataUri('school')
+    ),
+  ]);
 
   // A3 Landscape (420mm x 297mm) gives crisp readability for full multi-pillar school trees
   const doc = new jsPDF({
@@ -150,48 +243,53 @@ export async function exportOrgChartToPdf(
   doc.setFillColor(250, 249, 246);
   doc.rect(0, 0, pageW, pageH, 'F');
 
-  // --- INSTITUTIONAL HEADER ---
+  // --- INSTITUTIONAL KOP HEADER WITH PROVINCE (LEFT) & SCHOOL (RIGHT) LOGOS ---
+  drawFittedLogo(doc, provinceLogo, marginX, 7.5, 19, 21);
+  drawFittedLogo(doc, schoolLogo, pageW - marginX - 19, 7.5, 19, 21);
+
+  const centerX = pageW / 2;
+  const provinceLabel = (
+    schoolProfile.provinceName ||
+    'PEMERINTAH PROVINSI JAWA TIMUR · DINAS PENDIDIKAN'
+  ).toUpperCase();
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.setTextColor(120, 113, 108);
+  doc.setFontSize(9.5);
+  doc.setTextColor(87, 83, 78);
+  doc.text(provinceLabel, centerX, 11.2, { align: 'center' });
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(30, 58, 138);
   doc.text(
     `${schoolProfile.schoolName.toUpperCase()}  ·  NPSN ${schoolProfile.npsn}  ·  ${schoolProfile.accreditation.toUpperCase()}`,
-    marginX,
-    13
+    centerX,
+    15.8,
+    { align: 'center' }
   );
 
   doc.setFont('times', 'bold');
-  doc.setFontSize(20);
+  doc.setFontSize(21.5);
   doc.setTextColor(28, 25, 23);
-  doc.text('STRUKTUR ORGANISASI SEKOLAH', marginX, 21.5);
+  doc.text('STRUKTUR ORGANISASI SEKOLAH', centerX, 23, { align: 'center' });
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
+  doc.setFontSize(9);
   doc.setTextColor(87, 83, 78);
   doc.text(
-    `Tahun Ajaran ${schoolProfile.academicYear}  ·  ${schoolProfile.decreeNumber}`,
-    marginX,
-    27
+    `Tahun Ajaran ${schoolProfile.academicYear}  ·  ${schoolProfile.decreeNumber}  ·  ${schoolProfile.address}, ${schoolProfile.city}`,
+    centerX,
+    28,
+    { align: 'center' }
   );
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor(87, 83, 78);
-  doc.text(
-    `${schoolProfile.address}, ${schoolProfile.city}`,
-    pageW - marginX,
-    21.5,
-    { align: 'right' }
-  );
-  doc.setFontSize(8);
-  doc.setTextColor(120, 113, 108);
-  doc.text(`${nodes.length} Unit Jabatan Terdaftar`, pageW - marginX, 27, {
-    align: 'right',
-  });
-
-  doc.setDrawColor(214, 211, 209);
-  doc.setLineWidth(0.35);
-  doc.line(marginX, 30.5, pageW - marginX, 30.5);
+  // Double Kop Surat separator lines
+  doc.setDrawColor(68, 64, 60);
+  doc.setLineWidth(0.65);
+  doc.line(marginX, 30.8, pageW - marginX, 30.8);
+  doc.setDrawColor(168, 162, 158);
+  doc.setLineWidth(0.25);
+  doc.line(marginX, 31.8, pageW - marginX, 31.8);
 
   // --- BUILD VIRTUAL HIERARCHY LAYOUT (in mm units) ---
   const rootNode = nodes.find((n) => n.parentId === null) ?? nodes[0];
@@ -199,22 +297,59 @@ export async function exportOrgChartToPdf(
     (n) => n.parentId === rootNode.id && n.tier === 1
   );
   const tier2Nodes = nodes.filter(
-    (n) => n.parentId === rootNode.id && n.tier >= 2
+    (n) => n.parentId === rootNode.id && n.tier === 2
   );
+  const guruMapelNode =
+    nodes.find(
+      (n) => n.id === 'guru_mapel' && n.parentId === rootNode.id && n.tier >= 3
+    ) ?? null;
 
   const cards: PlacedCard[] = [];
   const lines: ConnectorLine[] = [];
 
-  const TOP_W = 60;
-  const TOP_H = 24;
-  const COL_W = 55;
-  const COL_GAP = 6.5;
-  const CARD_H = 22.5;
-  const SUB_GAP_Y = 3.5;
-  const INDENT_X = 5;
+  const TOP_W = 58;
+  const TOP_H = 21.5;
+  const COL_W = 54;
+  const COL_GAP = 5.5;
+  const SUBCOL_GAP = 5;
+  const CARD_H = 21;
+  const SUB_GAP_Y = 2.0;
+  const INDENT_X = 4.5;
 
-  const numCols = Math.max(1, tier2Nodes.length);
-  const tier2TotalW = numCols * COL_W + (numCols - 1) * COL_GAP;
+  const countSubtreeSize = (nodeId: string, depth = 0): number => {
+    if (depth > 4) return 1;
+    const kids = nodes.filter((n) => n.parentId === nodeId);
+    return (
+      1 +
+      kids.reduce((sum, kid) => sum + countSubtreeSize(kid.id, depth + 1), 0)
+    );
+  };
+
+  // Columns with > 7 descendants (e.g. Koordinator TU with 13 units) split into 2 side-by-side sub-columns
+  // so total height stays compact and A3 PDF scale increases dramatically for 60+ readability.
+  const colMeta = tier2Nodes.map((pillar) => {
+    const directKids = nodes.filter((n) => n.parentId === pillar.id);
+    const totalDescendants = directKids.reduce(
+      (sum, k) => sum + countSubtreeSize(k.id, 1),
+      0
+    );
+    const isDouble = totalDescendants > 7 && directKids.length >= 2;
+    return {
+      pillar,
+      directKids,
+      isDouble,
+      width: isDouble ? COL_W * 2 + SUBCOL_GAP : COL_W,
+    };
+  });
+
+  let cursorX = 0;
+  const colPositions = colMeta.map((cm) => {
+    const x = cursorX;
+    cursorX += cm.width + COL_GAP;
+    return { ...cm, x, centerX: x + cm.width / 2 };
+  });
+
+  const tier2TotalW = Math.max(COL_W, cursorX - COL_GAP);
   const rootCenterX = tier2TotalW / 2;
   const rootX = rootCenterX - TOP_W / 2;
   const rootY = 0;
@@ -223,7 +358,7 @@ export async function exportOrgChartToPdf(
 
   // Place Komite Sekolah to the left of Kepala Sekolah
   if (komiteNodes.length > 0) {
-    const komiteGapX = 16;
+    const komiteGapX = 14;
     const komiteX = rootX - komiteGapX - TOP_W;
     komiteNodes.forEach((komite, idx) => {
       const ky = idx * (TOP_H + 4);
@@ -245,35 +380,41 @@ export async function exportOrgChartToPdf(
     komiteNodes.length > 0 ? komiteNodes.length * (TOP_H + 4) - 4 : TOP_H
   );
 
-  const busY = tier1BottomY + 7;
-  const tier2Y = busY + 6;
+  const busY = tier1BottomY + 5;
+  const tier2Y = busY + 4.5;
 
-  // Recursive sub-tree layout helper within a column
-  const placeChildren = (
-    parentId: string,
+  // Helper to lay out a list of sibling nodes vertically along a single backbone
+  const placeBranchList = (
+    branchNodes: OrgNode[],
     colBaseX: number,
     startY: number,
     parentBottomY: number,
     depth: number
-  ): number => {
-    const children = nodes.filter((n) => n.parentId === parentId);
-    if (children.length === 0) return startY;
+  ): { nextY: number; lastCardBottomY: number; backboneX: number } => {
+    if (branchNodes.length === 0) {
+      return {
+        nextY: startY,
+        lastCardBottomY: parentBottomY,
+        backboneX: colBaseX,
+      };
+    }
 
     const childX = colBaseX + depth * INDENT_X;
     const childW = Math.max(38, COL_W - depth * INDENT_X);
-    const backboneX = childX - 2.6;
+    const backboneX = childX - 2.4;
 
     let currentY = startY;
     let lastChildCenterY = startY;
+    let lastCardBottomY = parentBottomY;
 
-    children.forEach((child) => {
+    branchNodes.forEach((child) => {
       const cy = currentY;
       cards.push({ node: child, x: childX, y: cy, w: childW, h: CARD_H });
 
       const midY = cy + CARD_H / 2;
       lastChildCenterY = midY;
+      lastCardBottomY = cy + CARD_H;
 
-      // Horizontal branch from backbone to card left edge
       lines.push({
         x1: backboneX,
         y1: midY,
@@ -285,30 +426,35 @@ export async function exportOrgChartToPdf(
       currentY += CARD_H + SUB_GAP_Y;
 
       if (depth < 4) {
-        currentY = placeChildren(
-          child.id,
-          colBaseX,
-          currentY,
-          cy + CARD_H,
-          depth + 1
-        );
+        const subKids = nodes.filter((n) => n.parentId === child.id);
+        if (subKids.length > 0) {
+          const subResult = placeBranchList(
+            subKids,
+            colBaseX,
+            currentY,
+            cy + CARD_H,
+            depth + 1
+          );
+          currentY = subResult.nextY;
+          lastCardBottomY = Math.max(lastCardBottomY, subResult.lastCardBottomY);
+        }
       }
     });
 
-    // Vertical backbone connecting parent bottom down to last direct child center
     lines.push({
       x1: backboneX,
       y1: parentBottomY,
       x2: backboneX,
       y2: lastChildCenterY,
-      dashed: children.every((c) => c.relationType === 'koordinasi'),
+      dashed: branchNodes.every((c) => c.relationType === 'koordinasi'),
     });
 
-    return currentY;
+    return { nextY: currentY, lastCardBottomY, backboneX };
   };
 
-  if (tier2Nodes.length > 0) {
-    // Spine from Kepala Sekolah down to bus
+  const colBottomYs: number[] = [];
+
+  if (colPositions.length > 0) {
     lines.push({
       x1: rootCenterX,
       y1: TOP_H,
@@ -317,10 +463,10 @@ export async function exportOrgChartToPdf(
       dashed: false,
     });
 
-    const firstColCenterX = COL_W / 2;
-    const lastColCenterX = (numCols - 1) * (COL_W + COL_GAP) + COL_W / 2;
+    const firstColCenterX = colPositions[0].centerX;
+    const lastColCenterX = colPositions[colPositions.length - 1].centerX;
 
-    if (numCols > 1) {
+    if (colPositions.length > 1) {
       lines.push({
         x1: firstColCenterX,
         y1: busY,
@@ -330,11 +476,9 @@ export async function exportOrgChartToPdf(
       });
     }
 
-    tier2Nodes.forEach((pillar, colIdx) => {
-      const colX = colIdx * (COL_W + COL_GAP);
-      const colCenterX = colX + COL_W / 2;
+    colPositions.forEach((colInfo) => {
+      const { pillar, directKids, isDouble, x, centerX: colCenterX } = colInfo;
 
-      // Vertical drop from bus to pillar top
       lines.push({
         x1: colCenterX,
         y1: busY,
@@ -343,16 +487,198 @@ export async function exportOrgChartToPdf(
         dashed: pillar.relationType === 'koordinasi',
       });
 
-      cards.push({ node: pillar, x: colX, y: tier2Y, w: COL_W, h: CARD_H });
+      const pillarCardX = colCenterX - COL_W / 2;
+      cards.push({
+        node: pillar,
+        x: pillarCardX,
+        y: tier2Y,
+        w: COL_W,
+        h: CARD_H,
+      });
 
-      placeChildren(
-        pillar.id,
-        colX,
-        tier2Y + CARD_H + SUB_GAP_Y,
-        tier2Y + CARD_H,
-        1
-      );
+      const pillarBottomY = tier2Y + CARD_H;
+
+      if (!isDouble) {
+        const res = placeBranchList(
+          directKids,
+          x,
+          pillarBottomY + SUB_GAP_Y,
+          pillarBottomY,
+          1
+        );
+        colBottomYs.push(res.lastCardBottomY);
+      } else {
+        // Greedy 2-bucket partition by subtree weight (keep each direct child's sub-units intact)
+        const leftKids: OrgNode[] = [];
+        const rightKids: OrgNode[] = [];
+        let leftWeight = 0;
+        let rightWeight = 0;
+
+        directKids.forEach((kid) => {
+          const w = countSubtreeSize(kid.id, 1);
+          if (leftWeight <= rightWeight) {
+            leftKids.push(kid);
+            leftWeight += w;
+          } else {
+            rightKids.push(kid);
+            rightWeight += w;
+          }
+        });
+
+        const subBusY = pillarBottomY + 2.8;
+        const subStartY = subBusY + 2.5;
+        const subDashed = directKids.every(
+          (k) => k.relationType === 'koordinasi'
+        );
+
+        const leftBackboneX = x + INDENT_X - 2.4;
+        const rightBaseX = x + COL_W + SUBCOL_GAP;
+        const rightBackboneX = rightBaseX + INDENT_X - 2.4;
+
+        // Vertical drop from pillar bottom to horizontal split bar
+        lines.push({
+          x1: colCenterX,
+          y1: pillarBottomY,
+          x2: colCenterX,
+          y2: subBusY,
+          dashed: subDashed,
+        });
+        lines.push({
+          x1: leftBackboneX,
+          y1: subBusY,
+          x2: rightBackboneX,
+          y2: subBusY,
+          dashed: subDashed,
+        });
+
+        const leftRes = placeBranchList(leftKids, x, subStartY, subBusY, 1);
+        const rightRes = placeBranchList(
+          rightKids,
+          rightBaseX,
+          subStartY,
+          subBusY,
+          1
+        );
+
+        const subMaxBottom = Math.max(
+          leftRes.lastCardBottomY,
+          rightRes.lastCardBottomY
+        );
+        const mergeY = subMaxBottom + 2.5;
+        const leftMidX = x + INDENT_X + (COL_W - INDENT_X) / 2;
+        const rightMidX = rightBaseX + INDENT_X + (COL_W - INDENT_X) / 2;
+
+        // Clean merge bracket back to colCenterX for the bottom command collector bar
+        lines.push({
+          x1: leftMidX,
+          y1: leftRes.lastCardBottomY,
+          x2: leftMidX,
+          y2: mergeY,
+          dashed: false,
+        });
+        lines.push({
+          x1: rightMidX,
+          y1: rightRes.lastCardBottomY,
+          x2: rightMidX,
+          y2: mergeY,
+          dashed: false,
+        });
+        lines.push({
+          x1: leftMidX,
+          y1: mergeY,
+          x2: rightMidX,
+          y2: mergeY,
+          dashed: false,
+        });
+        colBottomYs.push(mergeY);
+      }
     });
+
+    // Shared solid command collector bar below Koordinator TU & 4 Staff Waka -> Guru Mata Pelajaran
+    if (guruMapelNode) {
+      const maxColBottomY = Math.max(...colBottomYs);
+      const coordBarY = maxColBottomY + 4.5;
+
+      colPositions.forEach((colInfo, colIdx) => {
+        lines.push({
+          x1: colInfo.centerX,
+          y1: colBottomYs[colIdx],
+          x2: colInfo.centerX,
+          y2: coordBarY,
+          dashed: false,
+        });
+      });
+
+      if (colPositions.length > 1) {
+        lines.push({
+          x1: firstColCenterX,
+          y1: coordBarY,
+          x2: lastColCenterX,
+          y2: coordBarY,
+          dashed: false,
+        });
+      }
+
+      const guruY = coordBarY + 5;
+      lines.push({
+        x1: rootCenterX,
+        y1: coordBarY,
+        x2: rootCenterX,
+        y2: guruY,
+        dashed: false,
+      });
+
+      const guruX = rootCenterX - TOP_W / 2;
+      cards.push({
+        node: guruMapelNode,
+        x: guruX,
+        y: guruY,
+        w: TOP_W,
+        h: CARD_H,
+      });
+
+      // Solid command branch from Guru Mata Pelajaran -> Siswa / Peserta Didik
+      const guruChildren = nodes.filter((n) => n.parentId === guruMapelNode.id);
+      if (guruChildren.length > 0) {
+        const childBusY = guruY + CARD_H + 4;
+        lines.push({
+          x1: rootCenterX,
+          y1: guruY + CARD_H,
+          x2: rootCenterX,
+          y2: guruChildren.length === 1 ? guruY + CARD_H + 6 : childBusY,
+          dashed: guruChildren.every((c) => c.relationType === 'koordinasi'),
+        });
+
+        const totalChildW =
+          guruChildren.length * TOP_W + (guruChildren.length - 1) * COL_GAP;
+        const startChildX = rootCenterX - totalChildW / 2;
+
+        if (guruChildren.length > 1) {
+          lines.push({
+            x1: startChildX + TOP_W / 2,
+            y1: childBusY,
+            x2: startChildX + totalChildW - TOP_W / 2,
+            y2: childBusY,
+            dashed: false,
+          });
+        }
+
+        guruChildren.forEach((child, idx) => {
+          const cx = startChildX + idx * (TOP_W + COL_GAP);
+          const cy = guruChildren.length === 1 ? guruY + CARD_H + 6 : childBusY + 4;
+          if (guruChildren.length > 1) {
+            lines.push({
+              x1: cx + TOP_W / 2,
+              y1: childBusY,
+              x2: cx + TOP_W / 2,
+              y2: cy,
+              dashed: child.relationType === 'koordinasi',
+            });
+          }
+          cards.push({ node: child, x: cx, y: cy, w: TOP_W, h: CARD_H });
+        });
+      }
+    }
   }
 
   // --- COMPUTE BOUNDING BOX & UNIFORM SCALE ---
@@ -371,23 +697,23 @@ export async function exportOrgChartToPdf(
   const contentW = Math.max(1, maxX - minX);
   const contentH = Math.max(1, maxY - minY);
 
-  const areaTop = 35;
-  const areaBottom = 262;
+  const areaTop = 34;
+  const areaBottom = 264;
   const areaW = pageW - marginX * 2;
   const areaH = areaBottom - areaTop;
 
-  const scale = Math.min(1.06, areaW / contentW, areaH / contentH);
+  const scale = Math.min(1.08, areaW / contentW, areaH / contentH);
   const offsetX = marginX + (areaW - contentW * scale) / 2 - minX * scale;
   const offsetY =
-    areaTop + Math.min(4, (areaH - contentH * scale) / 2) - minY * scale;
+    areaTop + Math.min(3, (areaH - contentH * scale) / 2) - minY * scale;
 
   const tx = (x: number) => offsetX + x * scale;
   const ty = (y: number) => offsetY + y * scale;
   const ts = (v: number) => v * scale;
 
   // --- DRAW CONNECTOR LINES ---
-  doc.setLineWidth(Math.max(0.2, 0.32 * scale));
-  doc.setDrawColor(168, 162, 158);
+  doc.setLineWidth(Math.max(0.28, 0.42 * scale));
+  doc.setDrawColor(120, 113, 108);
 
   for (const line of lines) {
     if (line.dashed) {
@@ -511,11 +837,11 @@ export async function exportOrgChartToPdf(
     }
 
     // Left text column width (avoid colliding with avatar)
-    const textMaxW = w - pad * 2 - avatarSize - ts(1.8);
+    const textMaxW = w - pad * 2 - avatarSize - ts(1.2);
 
     // Code & Employment Status line
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(Math.max(5, 5.8 * scale));
+    doc.setFontSize(Math.max(5.5, 7.2 * scale));
     doc.setTextColor(accentRgb[0], accentRgb[1], accentRgb[2]);
     const codeText = `${node.shortCode} · ${node.status}`;
     doc.text(
@@ -526,46 +852,46 @@ export async function exportOrgChartToPdf(
 
     // Role Title (wrapped up to 2 lines)
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(Math.max(6, 7.2 * scale));
+    doc.setFontSize(Math.max(6.8, 9.0 * scale));
     doc.setTextColor(28, 25, 23);
     const wrappedRole = doc.splitTextToSize(node.roleTitle, textMaxW) as string[];
     const roleLines = wrappedRole.slice(0, 2);
     if (wrappedRole.length > 2) {
       roleLines[1] = fitTextToWidth(doc, `${roleLines[1]}…`, textMaxW);
     }
-    const roleStartY = y + pad + ts(5.6);
-    const lineStep = ts(3.1);
+    const roleStartY = y + pad + ts(5.8);
+    const lineStep = ts(3.4);
     roleLines.forEach((lineStr, idx) => {
       doc.text(lineStr, x + pad, roleStartY + idx * lineStep);
     });
 
     // Divider line above person identity
-    const dividerY = y + h - ts(8.2);
-    doc.setDrawColor(231, 229, 228);
-    doc.setLineWidth(Math.max(0.12, 0.18 * scale));
+    const dividerY = y + h - ts(8.6);
+    doc.setDrawColor(214, 211, 209);
+    doc.setLineWidth(Math.max(0.15, 0.22 * scale));
     doc.line(x + pad, dividerY, x + w - pad, dividerY);
 
     // Person Name
     const innerFullW = w - pad * 2;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(Math.max(5.5, 6.6 * scale));
-    doc.setTextColor(41, 37, 36);
+    doc.setFontSize(Math.max(6.2, 8.2 * scale));
+    doc.setTextColor(28, 25, 23);
     doc.text(
       fitTextToWidth(doc, node.personName, innerFullW),
       x + pad,
-      dividerY + ts(3.3)
+      dividerY + ts(3.7)
     );
 
     // NIP / Rank
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(Math.max(4.8, 5.7 * scale));
-    doc.setTextColor(120, 113, 108);
+    doc.setFontSize(Math.max(5.2, 7.0 * scale));
+    doc.setTextColor(87, 83, 78);
     const subMeta =
       node.nip && node.nip !== '-' ? `NIP ${node.nip}` : node.rank;
     doc.text(
       fitTextToWidth(doc, subMeta, innerFullW),
       x + pad,
-      dividerY + ts(6.3)
+      dividerY + ts(7.0)
     );
   }
 
@@ -633,27 +959,35 @@ export async function exportOrgChartToPdf(
   doc.rect(0, 0, pageW, pageH, 'F');
 
   const drawDirectoryHeader = (isContinuation = false) => {
+    drawFittedLogo(doc, provinceLogo, marginX, 8, 13.5, 15);
+    drawFittedLogo(doc, schoolLogo, pageW - marginX - 13.5, 8, 13.5, 15);
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(8);
-    doc.setTextColor(120, 113, 108);
+    doc.setTextColor(87, 83, 78);
     doc.text(
-      `${schoolProfile.schoolName.toUpperCase()}  ·  LAMPIRAN DIREKTORI JABATAN & TUPOKSI${
+      `${provinceLabel}  ·  ${schoolProfile.schoolName.toUpperCase()}${
         isContinuation ? ' (LANJUTAN)' : ''
       }`,
-      marginX,
-      14
+      centerX,
+      13.5,
+      { align: 'center' }
     );
     doc.setFont('times', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(15.5);
     doc.setTextColor(28, 25, 23);
     doc.text(
       'Daftar Pejabat Struktural, Status Kepegawaian & Tugas Pokok',
-      marginX,
-      21.5
+      centerX,
+      20.8,
+      { align: 'center' }
     );
-    doc.setDrawColor(214, 211, 209);
-    doc.setLineWidth(0.35);
-    doc.line(marginX, 25, pageW - marginX, 25);
+    doc.setDrawColor(68, 64, 60);
+    doc.setLineWidth(0.5);
+    doc.line(marginX, 24.5, pageW - marginX, 24.5);
+    doc.setDrawColor(168, 162, 158);
+    doc.setLineWidth(0.2);
+    doc.line(marginX, 25.3, pageW - marginX, 25.3);
   };
 
   drawDirectoryHeader(false);

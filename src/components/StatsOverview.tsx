@@ -40,9 +40,14 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
       byEducation[n.education] = (byEducation[n.education] || 0) + 1;
     });
 
-    const guruNode = nodes.find((n) => n.id === 'dewan_guru');
+    const guruNode = nodes.find(
+      (n) => n.id === 'guru_mapel' || n.id === 'dewan_guru'
+    );
     const studentNode = nodes.find((n) => n.id === 'peserta_didik');
-    const waliNode = nodes.find((n) => n.id === 'wali_kelas');
+    const tuDivisionCount = nodes.filter(
+      (n) => n.division === 'tata_usaha' && n.id !== 'koordinator_tu'
+    ).length;
+    const maxTier = Math.max(1, ...nodes.map((n) => n.tier));
 
     return {
       totalUnits: nodes.length,
@@ -50,7 +55,8 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
       byStatus,
       byEducation,
       totalTeachers: guruNode?.unitHeadcount ?? 58,
-      totalWaliKelas: waliNode?.unitHeadcount ?? 30,
+      totalTuStaff: tuDivisionCount,
+      maxTier,
       totalStudents: studentNode?.unitHeadcount ?? 1080,
     };
   }, [nodes]);
@@ -72,47 +78,47 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
       {/* Key Institutional Aggregates */}
       <div className="bg-white border border-stone-200 rounded-2xl grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-stone-200">
         <div className="p-6">
-          <div className="text-xs font-medium text-stone-500">
+          <div className="text-[13px] font-medium text-stone-600">
             Unit Jabatan Struktural
           </div>
-          <div className="mt-2 font-display text-3xl font-semibold text-stone-900 tabular-nums">
+          <div className="mt-2 font-display text-3xl sm:text-4xl font-semibold text-stone-900 tabular-nums">
             {stats.totalUnits}
           </div>
-          <div className="mt-1 text-xs text-stone-500">
-            4 tingkat hierarki tata kelola
+          <div className="mt-1 text-[13px] text-stone-600">
+            {stats.maxTier} tingkat hierarki tata kelola
           </div>
         </div>
         <div className="p-6">
-          <div className="text-xs font-medium text-stone-500">
-            Dewan Guru & Pendidik
+          <div className="text-[13px] font-medium text-stone-600">
+            Guru Mata Pelajaran
           </div>
-          <div className="mt-2 font-display text-3xl font-semibold text-stone-900 tabular-nums">
+          <div className="mt-2 font-display text-3xl sm:text-4xl font-semibold text-stone-900 tabular-nums">
             {stats.totalTeachers}
           </div>
-          <div className="mt-1 text-xs text-stone-500">
-            {stats.totalWaliKelas} Wali Kelas rombel X–XII
+          <div className="mt-1 text-[13px] text-stone-600">
+            Pendidik · {stats.totalTuStaff} personel layanan TU &amp; umum
           </div>
         </div>
         <div className="p-6">
-          <div className="text-xs font-medium text-stone-500">
+          <div className="text-[13px] font-medium text-stone-600">
             Pejabat ASN (PNS, PPPK &amp; P3K PW)
           </div>
-          <div className="mt-2 font-display text-3xl font-semibold text-blue-900 tabular-nums">
+          <div className="mt-2 font-display text-3xl sm:text-4xl font-semibold text-blue-900 tabular-nums">
             {stats.byStatus.PNS + stats.byStatus.PPPK + stats.byStatus['P3K PW']}
           </div>
-          <div className="mt-1 text-xs text-stone-500 tabular-nums">
+          <div className="mt-1 text-[13px] text-stone-600 tabular-nums">
             {stats.byStatus.PNS} PNS · {stats.byStatus.PPPK} PPPK ·{' '}
             {stats.byStatus['P3K PW']} P3K PW
           </div>
         </div>
         <div className="p-6">
-          <div className="text-xs font-medium text-stone-500">
+          <div className="text-[13px] font-medium text-stone-600">
             Peserta Didik Aktif
           </div>
-          <div className="mt-2 font-display text-3xl font-semibold text-stone-900 tabular-nums">
+          <div className="mt-2 font-display text-3xl sm:text-4xl font-semibold text-stone-900 tabular-nums">
             {stats.totalStudents.toLocaleString('id-ID')}
           </div>
-          <div className="mt-1 text-xs text-stone-500">
+          <div className="mt-1 text-[13px] text-stone-600">
             Terbagi dalam 30 rombongan belajar
           </div>
         </div>
@@ -122,10 +128,10 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Breakdown by Division */}
         <div className="bg-white border border-stone-200 rounded-2xl p-6">
-          <h3 className="text-sm font-semibold text-stone-900">
+          <h3 className="text-base font-semibold text-stone-900">
             Distribusi Unit Berdasarkan Bidang
           </h3>
-          <p className="text-xs text-stone-500 mt-1">
+          <p className="text-[13px] text-stone-600 mt-1">
             Jumlah posisi jabatan struktural dan unit pelaksana per bidang
           </p>
 
@@ -135,7 +141,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
               const widthPct = Math.round((count / maxDivCount) * 100);
               return (
                 <div key={meta.id} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-[13px]">
                     <span className="font-medium text-stone-800">
                       {meta.label}
                     </span>
@@ -161,7 +167,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
         {/* Breakdown by Employment Status & Education */}
         <div className="space-y-6">
           <div className="bg-white border border-stone-200 rounded-2xl p-6">
-            <h3 className="text-sm font-semibold text-stone-900">
+            <h3 className="text-base font-semibold text-stone-900">
               Status Kepegawaian Pimpinan & Koordinator
             </h3>
             <div className="mt-5 space-y-3.5">
@@ -179,7 +185,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
                 const widthPct = Math.round((count / maxStatusCount) * 100);
                 return (
                   <div key={item.key} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center justify-between text-[13px]">
                       <span className="text-stone-700">{item.label}</span>
                       <span className="font-mono-num font-medium text-stone-900">
                         {count}
@@ -198,7 +204,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ nodes }) => {
           </div>
 
           <div className="bg-white border border-stone-200 rounded-2xl p-6">
-            <h3 className="text-sm font-semibold text-stone-900">
+            <h3 className="text-base font-semibold text-stone-900">
               Kualifikasi Pendidikan Pejabat Struktural
             </h3>
             <div className="mt-4 divide-y divide-stone-100 text-sm">

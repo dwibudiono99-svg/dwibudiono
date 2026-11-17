@@ -45,6 +45,9 @@ export interface OrgNode {
 
 export interface SchoolProfile {
   schoolName: string;
+  provinceName?: string;
+  provinceLogoUrl?: string;
+  schoolLogoUrl?: string;
   npsn: string;
   address: string;
   city: string;
@@ -52,6 +55,9 @@ export interface SchoolProfile {
   decreeNumber: string;
   accreditation: string;
   headmasterName: string;
+  reportLetterNumber?: string;
+  recipientTitle?: string;
+  committeeChairName?: string;
 }
 
 export interface DivisionMeta {

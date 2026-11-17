@@ -65,6 +65,23 @@
     display: block !important;
   }
 
+  body.print-official-mode .print-chart-hide-on-official {
+    display: none !important;
+  }
+
+  body.print-official-mode .print-only {
+    display: none !important;
+  }
+
+  body.print-official-mode .print-official-only {
+    display: block !important;
+  }
+
+  .print-page-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
   .print-reset-scroll {
     overflow: visible !important;
     height: auto !important;
