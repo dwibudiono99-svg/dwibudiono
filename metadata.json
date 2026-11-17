@@ -1,0 +1,6 @@
+{
+  "name": "Struktur Organisasi Sekolah",
+  "description": "Bagan hierarki interaktif, direktori kepegawaian, dan rincian tupoksi Struktur Organisasi SMA Negeri 9 Surabaya.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
